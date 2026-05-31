@@ -4,6 +4,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { existsSync, readFileSync } from "node:fs";
 import { createAgent } from "./core/agent.js";
 import { startDashboard } from "./channels/dashboard.js";
+import { TelegramIntegration } from "./integrations/telegram.js";
 
 loadDotEnv();
 
@@ -39,10 +40,18 @@ async function main() {
     return;
   }
 
+  if (command === "telegram") {
+    const agent = await createAgent({ workspace });
+    const telegram = new TelegramIntegration({ agent, token: process.env.TELEGRAM_BOT_TOKEN });
+    await telegram.start();
+    return;
+  }
+
   console.log("Usage:");
   console.log("  node src/cli.js doctor [workspace]");
   console.log("  node src/cli.js chat [workspace]");
   console.log("  node src/cli.js dashboard [workspace]");
+  console.log("  node src/cli.js telegram [workspace]");
 }
 
 main().catch((error) => {

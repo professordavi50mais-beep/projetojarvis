@@ -24,6 +24,15 @@ node src/cli.js chat
 node src/cli.js dashboard
 ```
 
+Telegram bot:
+
+```powershell
+cd "C:\Users\Davi Santa Bárbara\Projetos\jarvs-agent"
+node src/cli.js telegram
+```
+
+Set `TELEGRAM_BOT_TOKEN` in `.env` first. The bot uses long polling, so it works locally without a public webhook URL.
+
 Dashboard:
 
 ```text
