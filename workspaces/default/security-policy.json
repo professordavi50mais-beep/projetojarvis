@@ -1,0 +1,24 @@
+{
+  "mode": "supervised",
+  "blocklist": [
+    "rm -rf /",
+    "del /s /q c:\\",
+    "format ",
+    "shutdown ",
+    "reboot",
+    "diskpart",
+    "mkfs",
+    "git reset --hard"
+  ],
+  "readonlyCommands": [
+    "dir",
+    "ls",
+    "pwd",
+    "type",
+    "cat",
+    "rg",
+    "findstr",
+    "git status",
+    "git diff"
+  ]
+}

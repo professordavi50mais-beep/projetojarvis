@@ -1,0 +1,8 @@
+node_modules/
+.env
+workspaces/*/secrets.enc
+workspaces/*/secrets.key
+workspaces/*/history.log
+workspaces/*/jobs.json
+workspaces/*/uploads/
+*.log

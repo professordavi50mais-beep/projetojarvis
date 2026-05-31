@@ -1,0 +1,16 @@
+{
+  "name": "jarvs-agent",
+  "version": "0.1.0",
+  "description": "Jarvs, a modular local AI agent framework scaffold.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node src/cli.js dashboard",
+    "chat": "node src/cli.js chat",
+    "doctor": "node src/cli.js doctor",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

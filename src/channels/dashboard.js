@@ -1,0 +1,302 @@
+import http from "node:http";
+
+export async function startDashboard({ agent, port }) {
+  const server = http.createServer(async (req, res) => {
+    try {
+      if (req.method === "GET" && req.url === "/") return html(res, await renderHome());
+      if (req.method === "GET" && req.url === "/api/status") return json(res, await agent.doctor());
+      if (req.method === "POST" && req.url === "/api/chat") {
+        const body = await readJson(req);
+        return json(res, await agent.handleMessage({ channel: "dashboard", groupId: body.groupId ?? "web", userId: body.userId ?? "web", text: body.text ?? "" }));
+      }
+      if (req.method === "POST" && req.url === "/webhook") {
+        const body = await readJson(req);
+        const text = body.text ?? body.prompt ?? JSON.stringify(body);
+        return json(res, await agent.handleMessage({ channel: "webhook", groupId: body.groupId ?? "webhook", userId: "webhook", text }));
+      }
+      res.writeHead(404);
+      res.end("Not found");
+    } catch (error) {
+      res.writeHead(500, { "content-type": "application/json" });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  });
+
+  await new Promise((resolve) => server.listen(port, resolve));
+  return { server, port };
+}
+
+async function renderHome() {
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProfDavi50+</title>
+  <style>
+    :root {
+      --ink: #182622;
+      --muted: #60736d;
+      --page: #edf4f1;
+      --panel: #fffdf8;
+      --brand: #24594f;
+      --brand-dark: #163f38;
+      --accent: #c46a2d;
+      --accent-dark: #9d4e1f;
+      --line: #d8e3de;
+      --assistant: #ffffff;
+      --user: #d9f0e8;
+      --shadow: 0 18px 45px rgba(24, 38, 34, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--page);
+      color: var(--ink);
+      height: 100vh;
+      overflow: hidden;
+      font-size: 17px;
+    }
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto auto;
+      background:
+        linear-gradient(180deg, rgba(36,89,79,.10), rgba(237,244,241,0) 260px),
+        var(--page);
+    }
+    header {
+      background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+      color: white;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid rgba(255,255,255,.18);
+      box-shadow: 0 10px 30px rgba(22,63,56,.18);
+    }
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ffe2a8, #f4b86a);
+      color: #2d2417;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      flex: 0 0 auto;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 6px 16px rgba(0,0,0,.16);
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      opacity: .9;
+      font-size: 15px;
+      margin-top: 3px;
+    }
+    main {
+      overflow-y: auto;
+      width: min(980px, 100%);
+      margin: 0 auto;
+      padding: 26px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .message {
+      max-width: min(760px, 90%);
+      padding: 15px 17px;
+      border-radius: 8px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-shadow: 0 2px 10px rgba(24,38,34,.08);
+    }
+    .assistant {
+      align-self: flex-start;
+      background: var(--assistant);
+      border: 1px solid var(--line);
+    }
+    .user {
+      align-self: flex-end;
+      background: var(--user);
+      border: 1px solid #b9ddd1;
+    }
+    form {
+      width: min(980px, calc(100% - 28px));
+      margin: 0 auto 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    textarea {
+      width: 100%;
+      min-height: 58px;
+      max-height: 150px;
+      resize: vertical;
+      font: inherit;
+      border: 1px solid #b7c8c1;
+      border-radius: 8px;
+      padding: 14px 15px;
+      outline-color: var(--accent);
+      background: #ffffff;
+      color: var(--ink);
+    }
+    textarea::placeholder { color: #758780; }
+    button {
+      min-width: 118px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 18px;
+      box-shadow: 0 8px 18px rgba(196,106,45,.24);
+    }
+    button:hover {
+      background: var(--accent-dark);
+    }
+    button:disabled {
+      background: #89948f;
+      box-shadow: none;
+      cursor: wait;
+    }
+    .hint {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      padding: 0 20px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 640px) {
+      body { font-size: 16px; }
+      header { padding: 14px 16px; }
+      .avatar { width: 46px; height: 46px; border-radius: 12px; }
+      h1 { font-size: 21px; }
+      .subtitle { font-size: 13px; }
+      main { padding: 16px 12px; }
+      form {
+        grid-template-columns: 1fr;
+        width: calc(100% - 20px);
+        margin-bottom: 10px;
+      }
+      button { min-height: 50px; }
+      .message { max-width: 96%; }
+      .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="avatar">PD</div>
+      <div>
+        <h1>ProfDavi50+</h1>
+        <div class="subtitle">Conversa simples, clara e segura</div>
+      </div>
+    </header>
+    <main id="messages">
+      <div class="message assistant">Ola, eu sou o ProfDavi50+. Pode perguntar como se fosse uma conversa normal.</div>
+    </main>
+    <form id="chatForm">
+      <textarea id="text" placeholder="Digite sua pergunta para o ProfDavi50+"></textarea>
+      <button id="sendButton" type="submit">Enviar</button>
+    </form>
+    <div class="hint">Pressione Enter para enviar. Use Shift + Enter para pular linha.</div>
+  </div>
+  <script>
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('text');
+    const messages = document.getElementById('messages');
+    const button = document.getElementById('sendButton');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await send();
+    });
+
+    input.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        await send();
+      }
+    });
+
+    async function send() {
+      const text = input.value.trim();
+      if (!text || button.disabled) return;
+      addMessage(text, 'user');
+      input.value = '';
+      button.disabled = true;
+      button.textContent = '...';
+      const waiting = addMessage('Pensando...', 'assistant');
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        waiting.textContent = data.text || 'Sem resposta.';
+      } catch (error) {
+        waiting.textContent = 'Nao consegui responder agora. Verifique se o servidor esta ativo.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Enviar';
+        input.focus();
+        scrollToBottom();
+      }
+    }
+
+    function addMessage(text, role) {
+      const element = document.createElement('div');
+      element.className = 'message ' + role;
+      element.textContent = text;
+      messages.appendChild(element);
+      scrollToBottom();
+      return element;
+    }
+
+    function scrollToBottom() {
+      messages.scrollTop = messages.scrollHeight;
+    }
+  </script>
+</body>
+</html>`;
+}
+
+function json(res, payload) {
+  res.writeHead(200, { "content-type": "application/json" });
+  res.end(JSON.stringify(payload, null, 2));
+}
+
+function html(res, payload) {
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  res.end(payload);
+}
+
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
