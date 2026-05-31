@@ -131,7 +131,7 @@ async function renderHome() {
       width: min(980px, calc(100% - 28px));
       margin: 0 auto 12px;
       display: grid;
-      grid-template-columns: 1fr auto;
+      grid-template-columns: 1fr auto auto;
       gap: 12px;
       padding: 14px;
       background: var(--panel);
@@ -173,6 +173,26 @@ async function renderHome() {
       box-shadow: none;
       cursor: wait;
     }
+    .voice-button {
+      min-width: 112px;
+      background: var(--brand);
+      box-shadow: 0 8px 18px rgba(36,89,79,.20);
+    }
+    .voice-button:hover {
+      background: var(--brand-dark);
+    }
+    .voice-button.listening {
+      background: #b83232;
+      box-shadow: 0 0 0 4px rgba(184,50,50,.14), 0 8px 18px rgba(184,50,50,.20);
+    }
+    .voice-status {
+      width: min(980px, 100%);
+      margin: -4px auto 8px;
+      padding: 0 20px;
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
     .hint {
       width: min(980px, 100%);
       margin: 0 auto;
@@ -212,15 +232,67 @@ async function renderHome() {
     </main>
     <form id="chatForm">
       <textarea id="text" placeholder="Digite sua pergunta para o ProfDavi50+"></textarea>
+      <button id="voiceButton" class="voice-button" type="button">Falar</button>
       <button id="sendButton" type="submit">Enviar</button>
     </form>
-    <div class="hint">Pressione Enter para enviar. Use Shift + Enter para pular linha.</div>
+    <div id="voiceStatus" class="voice-status" aria-live="polite"></div>
+    <div class="hint">Pressione Enter para enviar. Use Shift + Enter para pular linha. Use Falar para ditar sua pergunta.</div>
   </div>
   <script>
     const form = document.getElementById('chatForm');
     const input = document.getElementById('text');
     const messages = document.getElementById('messages');
     const button = document.getElementById('sendButton');
+    const voiceButton = document.getElementById('voiceButton');
+    const voiceStatus = document.getElementById('voiceStatus');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    let listening = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'pt-BR';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+
+      recognition.addEventListener('start', () => {
+        listening = true;
+        voiceButton.classList.add('listening');
+        voiceButton.textContent = 'Ouvindo';
+        voiceStatus.textContent = 'Estou ouvindo. Fale sua pergunta em voz alta.';
+      });
+
+      recognition.addEventListener('result', (event) => {
+        let transcript = '';
+        for (let index = event.resultIndex; index < event.results.length; index++) {
+          transcript += event.results[index][0].transcript;
+        }
+        input.value = transcript.trim();
+        const result = event.results[event.results.length - 1];
+        if (result.isFinal && input.value.trim()) {
+          voiceStatus.textContent = 'Pergunta reconhecida. Enviando...';
+          recognition.stop();
+          send();
+        }
+      });
+
+      recognition.addEventListener('error', (event) => {
+        voiceStatus.textContent = voiceErrorMessage(event.error);
+      });
+
+      recognition.addEventListener('end', () => {
+        listening = false;
+        voiceButton.classList.remove('listening');
+        voiceButton.textContent = 'Falar';
+        if (!input.value.trim() && !voiceStatus.textContent) {
+          voiceStatus.textContent = 'Nao ouvi nenhuma fala. Tente novamente.';
+        }
+      });
+    } else {
+      voiceButton.disabled = true;
+      voiceButton.textContent = 'Sem voz';
+      voiceStatus.textContent = 'Seu navegador nao suporta comando por voz. Use Chrome ou Edge.';
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -234,12 +306,24 @@ async function renderHome() {
       }
     });
 
+    voiceButton.addEventListener('click', () => {
+      if (!recognition) return;
+      if (listening) {
+        recognition.stop();
+        return;
+      }
+      voiceStatus.textContent = '';
+      input.value = '';
+      recognition.start();
+    });
+
     async function send() {
       const text = input.value.trim();
       if (!text || button.disabled) return;
       addMessage(text, 'user');
       input.value = '';
       button.disabled = true;
+      voiceButton.disabled = true;
       button.textContent = '...';
       const waiting = addMessage('Pensando...', 'assistant');
       try {
@@ -255,9 +339,17 @@ async function renderHome() {
       } finally {
         button.disabled = false;
         button.textContent = 'Enviar';
+        if (recognition) voiceButton.disabled = false;
         input.focus();
         scrollToBottom();
       }
+    }
+
+    function voiceErrorMessage(code) {
+      if (code === 'not-allowed') return 'Permita o uso do microfone no navegador para usar comando por voz.';
+      if (code === 'no-speech') return 'Nao ouvi sua fala. Clique em Falar e tente novamente.';
+      if (code === 'audio-capture') return 'Nao encontrei microfone ativo neste computador.';
+      return 'Nao consegui usar o microfone agora. Tente novamente.';
     }
 
     function addMessage(text, role) {
