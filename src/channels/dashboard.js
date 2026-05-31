@@ -248,11 +248,13 @@ async function renderHome() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition;
     let listening = false;
+    let voiceSendTimer;
+    const voicePauseBeforeSendMs = 2800;
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
       recognition.lang = 'pt-BR';
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = true;
 
       recognition.addEventListener('start', () => {
@@ -264,15 +266,12 @@ async function renderHome() {
 
       recognition.addEventListener('result', (event) => {
         let transcript = '';
-        for (let index = event.resultIndex; index < event.results.length; index++) {
+        for (let index = 0; index < event.results.length; index++) {
           transcript += event.results[index][0].transcript;
         }
         input.value = transcript.trim();
-        const result = event.results[event.results.length - 1];
-        if (result.isFinal && input.value.trim()) {
-          voiceStatus.textContent = 'Pergunta reconhecida. Enviando...';
-          recognition.stop();
-          send();
+        if (input.value.trim()) {
+          scheduleVoiceSend();
         }
       });
 
@@ -284,6 +283,7 @@ async function renderHome() {
         listening = false;
         voiceButton.classList.remove('listening');
         voiceButton.textContent = 'Falar';
+        clearTimeout(voiceSendTimer);
         if (!input.value.trim() && !voiceStatus.textContent) {
           voiceStatus.textContent = 'Nao ouvi nenhuma fala. Tente novamente.';
         }
@@ -309,13 +309,26 @@ async function renderHome() {
     voiceButton.addEventListener('click', () => {
       if (!recognition) return;
       if (listening) {
+        clearTimeout(voiceSendTimer);
         recognition.stop();
+        if (input.value.trim()) send();
         return;
       }
       voiceStatus.textContent = '';
       input.value = '';
       recognition.start();
     });
+
+    function scheduleVoiceSend() {
+      clearTimeout(voiceSendTimer);
+      voiceStatus.textContent = 'Estou anotando. Vou enviar quando voce fizer uma pausa.';
+      voiceSendTimer = setTimeout(() => {
+        if (!input.value.trim() || button.disabled) return;
+        voiceStatus.textContent = 'Pausa percebida. Enviando sua pergunta...';
+        recognition.stop();
+        send();
+      }, voicePauseBeforeSendMs);
+    }
 
     async function send() {
       const text = input.value.trim();
