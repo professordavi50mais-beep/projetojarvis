@@ -32,6 +32,7 @@ node src/cli.js telegram
 ```
 
 Set `TELEGRAM_BOT_TOKEN` in `.env` first. The bot uses long polling, so it works locally without a public webhook URL.
+Set `TELEGRAM_ALLOWED_USER_IDS` to restrict the bot to specific Telegram users, separated by commas.
 
 Dashboard:
 

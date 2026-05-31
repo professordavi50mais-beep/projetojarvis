@@ -42,7 +42,11 @@ async function main() {
 
   if (command === "telegram") {
     const agent = await createAgent({ workspace });
-    const telegram = new TelegramIntegration({ agent, token: process.env.TELEGRAM_BOT_TOKEN });
+    const telegram = new TelegramIntegration({
+      agent,
+      token: process.env.TELEGRAM_BOT_TOKEN,
+      allowedUserIds: parseCsv(process.env.TELEGRAM_ALLOWED_USER_IDS)
+    });
     await telegram.start();
     return;
   }
@@ -71,4 +75,11 @@ function loadDotEnv() {
     const value = trimmed.slice(index + 1).trim().replace(/^["']|["']$/g, "");
     if (key && process.env[key] === undefined) process.env[key] = value;
   }
+}
+
+function parseCsv(value) {
+  return String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

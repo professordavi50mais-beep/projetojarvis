@@ -1,8 +1,9 @@
 export class TelegramIntegration {
-  constructor({ agent, token, pollIntervalMs = 1200 }) {
+  constructor({ agent, token, allowedUserIds = [], pollIntervalMs = 1200 }) {
     if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured.");
     this.agent = agent;
     this.token = token;
+    this.allowedUserIds = new Set(allowedUserIds.map(String).filter(Boolean));
     this.pollIntervalMs = pollIntervalMs;
     this.baseUrl = `https://api.telegram.org/bot${token}`;
     this.offset = 0;
@@ -49,7 +50,14 @@ export class TelegramIntegration {
     const message = update.message;
     const text = message?.text?.trim();
     const chatId = message?.chat?.id;
+    const userId = String(message?.from?.id ?? chatId ?? "");
     if (!chatId || !text) return;
+
+    if (!this.isAuthorized(userId)) {
+      await this.sendMessage(chatId, "Este bot esta configurado para uso privado.");
+      console.warn(`Blocked unauthorized Telegram user: ${userId}`);
+      return;
+    }
 
     if (text === "/start") {
       await this.sendMessage(chatId, "Ola, eu sou o ProfDavi50+. Pode me enviar uma pergunta por aqui.");
@@ -60,10 +68,14 @@ export class TelegramIntegration {
     const response = await this.agent.handleMessage({
       channel: "telegram",
       groupId: `telegram-${chatId}`,
-      userId: String(message.from?.id ?? chatId),
+      userId,
       text
     });
     await this.sendMessage(chatId, response.text);
+  }
+
+  isAuthorized(userId) {
+    return this.allowedUserIds.size === 0 || this.allowedUserIds.has(String(userId));
   }
 
   async sendMessage(chatId, text) {
