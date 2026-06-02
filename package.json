@@ -5,6 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build": "node --check src/cli.js && node --check api/chat.js && node --check api/status.js",
     "start": "node src/cli.js dashboard",
     "chat": "node src/cli.js chat",
     "doctor": "node src/cli.js doctor",

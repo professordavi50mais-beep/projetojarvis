@@ -1,4 +1,5 @@
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { promises as fs } from "node:fs";
 import { MessageBus } from "./message-bus.js";
@@ -10,9 +11,10 @@ import { ProviderRouter } from "./providers.js";
 import { createToolRegistry } from "../tools/registry.js";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const workspaceRootDir = process.env.VERCEL ? path.join(os.tmpdir(), "jarvs-workspaces") : path.join(rootDir, "workspaces");
 
 export async function createAgent({ workspace = "default" } = {}) {
-  const workspaceDir = path.join(rootDir, "workspaces", sanitizeName(workspace));
+  const workspaceDir = path.join(workspaceRootDir, sanitizeName(workspace));
   await fs.mkdir(workspaceDir, { recursive: true });
 
   const soul = await fs.readFile(path.join(rootDir, "Soul.md"), "utf8");
